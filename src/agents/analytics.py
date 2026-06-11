@@ -1,16 +1,31 @@
 import os
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
+
+# Force-load environment variables right at the module import step
+load_dotenv()
 
 class AnalyticsAgent:
     """Provides internal business performance metrics and query analysis for the owner."""
     
     def __init__(self):
         self.db = DatabaseManager()
+        
+        # Pull and verify the key explicitly
+        api_key = os.getenv("GROQ_API_KEY")
+        model_name = os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+        
+        # Debug logger to trace Render container states inside live log streams
+        if not api_key:
+            print("🚨 CRITICAL BUG: AnalyticsAgent could not locate GROQ_API_KEY via os.getenv!")
+        else:
+            print(f"✅ AnalyticsAgent initialized successfully with model: {model_name}")
+
         self.llm = ChatGroq(
-            groq_api_key=os.getenv("GROQ_API_KEY"),
-            model_name=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
+            groq_api_key=api_key,
+            model_name=model_name,
             temperature=0.0
         )
 
@@ -36,7 +51,7 @@ class AnalyticsAgent:
             cursor.close()
             conn.close()
             
-            # Build an structural context text block tracking live performance data
+            # Build a structured context text block tracking live performance data
             stats_context = (
                 f"Current Live Restaurant Stats:\n"
                 f"- Total Orders Processed: {total_orders}\n"

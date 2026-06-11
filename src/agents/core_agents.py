@@ -1,13 +1,16 @@
 import os
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.rag_engine import RestaurantMenuRAGEngine
+
+# Force-load environment variables right at the module import step
+load_dotenv()
 
 class MenuAgent:
     """Handles direct customer questions regarding available menu dishes and ingredients."""
     
     def __init__(self):
-        # Initialize the shared RAG vector engine
         self.rag_engine = RestaurantMenuRAGEngine()
         self.llm = ChatGroq(
             groq_api_key=os.getenv("GROQ_API_KEY"),
@@ -34,7 +37,6 @@ class MenuAgent:
             ("user", user_msg)
         ])
         
-        # Append the new agent message string to the LangGraph message history list
         return {
             "messages": [response]
         }

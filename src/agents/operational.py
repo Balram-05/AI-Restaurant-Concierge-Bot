@@ -1,9 +1,13 @@
 import os
 import uuid
 from datetime import datetime
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
+
+# Force-load environment variables right at the module import step
+load_dotenv()
 
 class ReservationAgent:
     """Handles table reservation queries including availability checks and booking creations."""
@@ -21,7 +25,6 @@ class ReservationAgent:
         user_msg = state["messages"][-1].content
         customer_id = state.get("customer_id")
 
-        # Fallback registration if customer_id was missing from state
         if not customer_id:
             customer_id = self.db.get_or_create_customer(telegram_id=state["telegram_id"], phone_number=state.get("phone_number"))
 
@@ -45,7 +48,6 @@ class ReservationAgent:
             date_str, time_str, count_str = llm_out.split(",")
             reservation_id = f"RES{uuid.uuid4().hex[:4].upper()}"
 
-            # Write the extraction payload directly into the reservations table
             conn = self.db._get_connection()
             cursor = conn.cursor()
             cursor.execute(
@@ -56,12 +58,11 @@ class ReservationAgent:
             cursor.close()
             conn.close()
 
-            success_msg = f"Reservation confirmed! ID: {reservation_id} for {count_str.strip()} guests on {date_str.strip()} at {time_str.strip()}."
             return {
                 "messages": [("assistant", f"I have successfully booked your table! Your reservation reference is {reservation_id}.")],
                 "current_reservation_id": reservation_id,  
-               "current_intent": "reservation"
-}
+                "current_intent": "reservation"
+            }
         except Exception as e:
             print(f"❌ Reservation processing error: {e}")
             return {"messages": [("assistant", "Sorry, I could not complete your booking request at the moment.")]}
@@ -101,7 +102,6 @@ class OrderAgent:
         try:
             order_id = f"ORD{uuid.uuid4().hex[:4].upper()}"
 
-            # Log the order as 'Received' in the MySQL orders table
             conn = self.db._get_connection()
             cursor = conn.cursor()
             cursor.execute(
