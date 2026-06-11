@@ -94,5 +94,5 @@ async def telegram_webhook_endpoint(request: Request, background_tasks: Backgrou
         return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
-    server_port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=server_port, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

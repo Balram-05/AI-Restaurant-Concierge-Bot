@@ -1,11 +1,11 @@
 import os
-os.environ["STREAMLIT_WATCHER_TYPE"] = "none"
 import sys
 import streamlit as st
 from dotenv import load_dotenv
 
 # Path alignment to access source modules cleanly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 from frontend.auth_pipeline import AuthPipeline
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.components.rag_engine import RestaurantMenuRAGEngine
