@@ -1,0 +1,11 @@
+langchain
+langchain-core
+langchain-groq
+langgraph
+mysql-connector-python
+chromadb
+fastapi
+uvicorn
+streamlit
+requests
+python-dotenv
