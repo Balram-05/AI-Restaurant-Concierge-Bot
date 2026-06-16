@@ -9,6 +9,11 @@ from src.utils.telegram_api import TelegramAPIWrapper
 # Load configuration values from the local environment file
 load_dotenv()
 
+# TEMPORARY DEBUG PRINT
+print(f"DEBUG: GROQ_API_KEY is set: {os.getenv('GROQ_API_KEY') is not None}")
+if os.getenv('GROQ_API_KEY'):
+    print(f"DEBUG: Key starts with: {os.getenv('GROQ_API_KEY')[:7]}")
+
 # Initialize FastAPI application container instance
 app = FastAPI(
     title="Multi-Agent AI Restaurant Concierge API",
