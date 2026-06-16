@@ -1,11 +1,10 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
-
-# Force-load environment variables right at the module import step
-load_dotenv()
 
 class AnalyticsAgent:
     """Provides internal business performance metrics and query analysis for the owner."""

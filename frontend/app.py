@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 import sys
 import streamlit as st
 
@@ -16,8 +18,6 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 from frontend.auth_pipeline import AuthPipeline
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.components.rag_engine import RestaurantMenuRAGEngine
-
-load_dotenv()
 
 # App Configuration & Custom Luxury Theme
 st.set_page_config(page_title="Gourmet Concierge Dashboard", page_icon="🍽️", layout="wide")

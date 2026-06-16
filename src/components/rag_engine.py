@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 import chromadb
 from chromadb.utils import embedding_functions
-
-load_dotenv()
 
 class RestaurantMenuRAGEngine:
     """Handles vector index caching and semantic search queries for the menu."""

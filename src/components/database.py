@@ -3,8 +3,7 @@ import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 
-# Load all database credentials and settings from the .env file
-load_dotenv()
+load_dotenv(override=False)
 
 class DatabaseManager:
     """

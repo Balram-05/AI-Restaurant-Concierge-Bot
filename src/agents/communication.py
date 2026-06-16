@@ -1,11 +1,10 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
 
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
 from src.utils.whatsapp_api import WhatsAppAPIWrapper
-
-load_dotenv()
 
 class WhatsAppAgent:
     """

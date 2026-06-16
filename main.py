@@ -1,13 +1,12 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 import uvicorn
 from fastapi import FastAPI, Request, BackgroundTasks
 from src.components.database import DatabaseManager
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.utils.telegram_api import TelegramAPIWrapper
-
-# Load configuration values from the local environment file
-load_dotenv()
 
 # TEMPORARY DEBUG PRINT
 print(f"DEBUG: GROQ_API_KEY is set: {os.getenv('GROQ_API_KEY') is not None}")

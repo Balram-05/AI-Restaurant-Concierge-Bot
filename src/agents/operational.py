@@ -1,13 +1,12 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 from langchain_groq import ChatGroq
 import uuid
 from datetime import datetime
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
-
-# Force-load environment variables right at the module import step
-load_dotenv()
 
 class ReservationAgent:
     """Handles table reservation queries including availability checks and booking creations."""

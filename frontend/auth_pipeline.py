@@ -1,9 +1,9 @@
 import streamlit as st
 from dotenv import load_dotenv
+load_dotenv(override=False)
 
 from src.components.database import DatabaseManager
 
-load_dotenv()
 class AuthPipeline:
     """Manages the isolated login, registration, and session states for restaurant guests."""
     

@@ -1,10 +1,9 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState, IntentClassification
-
-# Force-load environment variables right at the module import step
-load_dotenv()
 
 class IntentAgent:
     """Classifies user input into predefined restaurant system intents."""

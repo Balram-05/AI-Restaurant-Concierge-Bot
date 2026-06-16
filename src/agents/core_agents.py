@@ -1,11 +1,10 @@
 import os
 from dotenv import load_dotenv
+load_dotenv(override=False)
+
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.rag_engine import RestaurantMenuRAGEngine
-
-# Force-load environment variables right at the module import step
-load_dotenv()
 
 class MenuAgent:
     """Handles direct customer questions regarding available menu dishes and ingredients."""
