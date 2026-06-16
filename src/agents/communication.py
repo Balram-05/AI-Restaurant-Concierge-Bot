@@ -1,8 +1,9 @@
 import os
+from dotenv import load_dotenv
+
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
 from src.utils.whatsapp_api import WhatsAppAPIWrapper
-from dotenv import load_dotenv
 
 load_dotenv()
 

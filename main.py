@@ -1,7 +1,7 @@
 import os
+from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, Request, BackgroundTasks
-from dotenv import load_dotenv
 from src.components.database import DatabaseManager
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.utils.telegram_api import TelegramAPIWrapper

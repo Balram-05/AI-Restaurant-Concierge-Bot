@@ -1,7 +1,7 @@
 import os
+from dotenv import load_dotenv
 import sys
 import streamlit as st
-from dotenv import load_dotenv
 
 # Path alignment to access source modules cleanly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -1,7 +1,7 @@
 import os
+from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
-from dotenv import load_dotenv
 
 load_dotenv()
 

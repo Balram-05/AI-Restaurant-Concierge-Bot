@@ -1,6 +1,7 @@
 import streamlit as st
-from src.components.database import DatabaseManager
 from dotenv import load_dotenv
+
+from src.components.database import DatabaseManager
 
 load_dotenv()
 class AuthPipeline:
