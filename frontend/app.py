@@ -3,6 +3,13 @@ from dotenv import load_dotenv
 import sys
 import streamlit as st
 
+st.write("ENV CHECK:", {
+    "GROQ": bool(os.getenv("GROQ_API_KEY")),
+    "WA_TOKEN": bool(os.getenv("WHATSAPP_API_TOKEN")),
+    "WA_PHONE": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
+    "DB_HOST": bool(os.getenv("DB_HOST")),
+})
+
 # Path alignment to access source modules cleanly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
