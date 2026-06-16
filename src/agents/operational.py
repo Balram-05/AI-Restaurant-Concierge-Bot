@@ -15,7 +15,7 @@ class ReservationAgent:
     def __init__(self):
         self.db = DatabaseManager()
         self.llm = ChatGroq(
-            groq_api_key=os.getenv("GROQ_API_KEY"),
+            api_key=os.getenv("GROQ_API_KEY"),
             model_name=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
             temperature=0.0
         )
@@ -74,7 +74,7 @@ class OrderAgent:
     def __init__(self):
         self.db = DatabaseManager()
         self.llm = ChatGroq(
-            groq_api_key=os.getenv("GROQ_API_KEY"),
+            api_key=os.getenv("GROQ_API_KEY"),
             model_name=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
             temperature=0.0
         )

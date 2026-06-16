@@ -24,7 +24,7 @@ class AnalyticsAgent:
             print(f"✅ AnalyticsAgent initialized successfully with model: {model_name}")
 
         self.llm = ChatGroq(
-            groq_api_key=api_key,
+            api_key=api_key,
             model_name=model_name,
             temperature=0.0
         )
