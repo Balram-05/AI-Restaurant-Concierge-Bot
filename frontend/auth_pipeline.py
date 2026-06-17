@@ -1,17 +1,14 @@
 import streamlit as st
 from dotenv import load_dotenv
-load_dotenv(override=False)
-
 from src.components.database import DatabaseManager
 
+load_dotenv(override=False)
+
 class AuthPipeline:
-    """Manages the isolated login, registration, and session states for restaurant guests."""
-    
     def __init__(self):
         self.db = DatabaseManager()
 
     def render_sidebar_auth(self):
-        """Renders the secure luxury login/register wizard in the Streamlit sidebar."""
         st.sidebar.title("🔐 Guest Portal")
         auth_mode = st.sidebar.radio("Choose Action", ["Login", "Register New Account"])
 
@@ -36,7 +33,6 @@ class AuthPipeline:
                 else:
                     self._login_user(login_id)
 
-        # Render logout button if the user session is active
         if st.session_state.get("logged_in", False):
             if st.sidebar.button("Log Out"):
                 st.session_state.logged_in = False
@@ -45,7 +41,6 @@ class AuthPipeline:
                 st.rerun()
 
     def _register_user(self, name: str, telegram_id: str, phone: str):
-        """Handles internal database execution to save user profiles securely."""
         try:
             conn = self.db._get_connection()
             cursor = conn.cursor()
@@ -67,7 +62,6 @@ class AuthPipeline:
             st.sidebar.error(f"Registration dropped: {e}")
 
     def _login_user(self, telegram_id: str):
-        """Validates credentials and maps persistent database primary keys to the active session."""
         try:
             conn = self.db._get_connection()
             cursor = conn.cursor()

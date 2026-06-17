@@ -1,30 +1,22 @@
 import os
-from dotenv import load_dotenv
-load_dotenv(override=False)
-
 import sys
 import streamlit as st
+from dotenv import load_dotenv
 
-st.write("ENV CHECK:", {
-    "GROQ": bool(os.getenv("GROQ_API_KEY")),
-    "WA_TOKEN": bool(os.getenv("WHATSAPP_API_TOKEN")),
-    "WA_PHONE": bool(os.getenv("WHATSAPP_PHONE_NUMBER_ID")),
-    "DB_HOST": bool(os.getenv("DB_HOST")),
-})
+load_dotenv(override=False)
 
-# Path alignment to access source modules cleanly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
 from frontend.auth_pipeline import AuthPipeline
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.components.rag_engine import RestaurantMenuRAGEngine
 
-# App Configuration & Custom Luxury Theme
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
 st.set_page_config(page_title="Gourmet Concierge Dashboard", page_icon="🍽️", layout="wide")
 
 st.markdown("""
     <style>
-    /* Premium Charcoal and Gold Aesthetic Design Layout Overrides */
     .stApp { background-color: #1A1A1A; color: #E0E0E0; }
     h1, h2, h3 { color: #D4AF37 !important; font-family: 'Playfair Display', serif; }
     div.stButton > button:first-child {
@@ -36,15 +28,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize Session Memory Slots
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- DYNAMIC INJECTION OF THE AUTHENTICATION SIDEPANEL ---
 auth_manager = AuthPipeline()
 auth_manager.render_sidebar_auth()
 
-# --- MAIN DISPLAY VIEWPORTS ---
 st.title("🍽️ Gourmet Concierge AI Hub")
 st.write("Interact with our multi-agent culinary platform seamlessly from the web or your chat app.")
 
@@ -59,11 +48,8 @@ with col_chat:
         user_input = st.text_input("Ask about menus, reserve tables, or place orders:", placeholder="Type a message...")
         
         if st.button("Send to Agent System"):
-            st.write("DEBUG session_state:", dict(st.session_state))
             if user_input:
                 with st.spinner("Orchestrating agents..."):
-                    # Populate our standard LangGraph runtime dictionary matching AgentState
-                    
                     initial_state = {
                         "messages": [("user", user_input)],
                         "telegram_id": st.session_state.user_telegram_id,

@@ -1,24 +1,20 @@
 import os
 from dotenv import load_dotenv
-load_dotenv(override=False)
-
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState, IntentClassification
 
+load_dotenv(override=False)
+
 class IntentAgent:
-    """Classifies user input into predefined restaurant system intents."""
-    
     def __init__(self):
         self.llm = ChatGroq(
             api_key=os.getenv("GROQ_API_KEY"),
             model_name=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
             temperature=0.0
         )
-        # Force structured output using the Pydantic schema
         self.structured_llm = self.llm.with_structured_output(IntentClassification)
 
     def classify(self, state: AgentState) -> dict:
-        """Extracts intent from the last user message and updates state."""
         user_msg = state["messages"][-1].content
 
         system_prompt = (

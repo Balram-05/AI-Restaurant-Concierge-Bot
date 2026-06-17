@@ -1,16 +1,14 @@
 import os
-from dotenv import load_dotenv
-load_dotenv(override=False)
-
-from langchain_groq import ChatGroq
 import uuid
 from datetime import datetime
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.database import DatabaseManager
 
+load_dotenv(override=False)
+
 class ReservationAgent:
-    """Handles table reservation queries including availability checks and booking creations."""
-    
     def __init__(self):
         self.db = DatabaseManager()
         self.llm = ChatGroq(
@@ -20,7 +18,6 @@ class ReservationAgent:
         )
 
     def execute(self, state: AgentState) -> dict:
-        """Parses booking info from the message and logs the reservation into MySQL."""
         user_msg = state["messages"][-1].content
         customer_id = state.get("customer_id")
 
@@ -62,14 +59,11 @@ class ReservationAgent:
                 "current_reservation_id": reservation_id,  
                 "current_intent": "reservation"
             }
-        except Exception as e:
-            print(f"❌ Reservation processing error: {e}")
+        except Exception:
             return {"messages": [("assistant", "Sorry, I could not complete your booking request at the moment.")]}
 
 
 class OrderAgent:
-    """Manages customer checkout cycles by adding or clearing selected food items."""
-    
     def __init__(self):
         self.db = DatabaseManager()
         self.llm = ChatGroq(
@@ -79,7 +73,6 @@ class OrderAgent:
         )
 
     def execute(self, state: AgentState) -> dict:
-        """Processes ordering requests and initializes order records within the database."""
         user_msg = state["messages"][-1].content
         customer_id = state.get("customer_id")
 
@@ -116,6 +109,5 @@ class OrderAgent:
                 "current_order_id": order_id,
                 "messages": [("assistant", confirmation)]
             }
-        except Exception as e:
-            print(f"❌ Order creation failure: {e}")
+        except Exception:
             return {"messages": [("assistant", "An error occurred while building your order cart.")]}

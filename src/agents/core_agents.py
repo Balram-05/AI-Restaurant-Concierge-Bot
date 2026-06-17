@@ -1,14 +1,12 @@
 import os
 from dotenv import load_dotenv
-load_dotenv(override=False)
-
 from langchain_groq import ChatGroq
 from src.schema.schema import AgentState
 from src.components.rag_engine import RestaurantMenuRAGEngine
 
+load_dotenv(override=False)
+
 class MenuAgent:
-    """Handles direct customer questions regarding available menu dishes and ingredients."""
-    
     def __init__(self):
         self.rag_engine = RestaurantMenuRAGEngine()
         self.llm = ChatGroq(
@@ -18,10 +16,7 @@ class MenuAgent:
         )
 
     def execute(self, state: AgentState) -> dict:
-        """Queries the vector store for food facts and formats an accurate response."""
         user_msg = state["messages"][-1].content
-        
-        # Pull matching dishes directly from ChromaDB persistent store
         menu_context = self.rag_engine.query_menu_records(user_query=user_msg, max_results=3)
         
         system_prompt = (
@@ -42,8 +37,6 @@ class MenuAgent:
 
 
 class RecommendationAgent:
-    """Suggests curated combos or singular items matching budget and party size rules."""
-    
     def __init__(self):
         self.rag_engine = RestaurantMenuRAGEngine()
         self.llm = ChatGroq(
@@ -53,10 +46,7 @@ class RecommendationAgent:
         )
 
     def execute(self, state: AgentState) -> dict:
-        """Formulates food combination recommendations tailored to user limits."""
         user_msg = state["messages"][-1].content
-        
-        # Use RAG to fetch contextual items for reference matching
         menu_context = self.rag_engine.query_menu_records(user_query=user_msg, max_results=4)
         
         system_prompt = (

@@ -1,13 +1,11 @@
 import os
-from dotenv import load_dotenv
-load_dotenv(override=False)
-
 import chromadb
 from chromadb.utils import embedding_functions
+from dotenv import load_dotenv
+
+load_dotenv(override=False)
 
 class RestaurantMenuRAGEngine:
-    """Handles vector index caching and semantic search queries for the menu."""
-    
     def __init__(self):
         self.db_path = os.getenv("CHROMA_DB_PATH", os.path.join(os.getcwd(), "restaurant_db"))
         self.collection_name = "restaurant_menu_faq"
@@ -21,11 +19,9 @@ class RestaurantMenuRAGEngine:
         self._seed_initial_menu_data()
 
     def _seed_initial_menu_data(self) -> None:
-        """Seeds default menu choices into storage if it is empty."""
         if self.collection.count() > 0:
             return
 
-        print("ℹ️ Seeding initial restaurant menu records...")
         sample_dishes = [
             "Paneer Pizza - Premium cottage cheese with capsicum, onions, and extra mozzarella. Price: ₹299. Category: Vegetarian.",
             "Veg Burger - Crispy mixed vegetable patty with lettuce, tomatoes, and creamy mayo cheese sauce. Price: ₹120. Category: Vegetarian.",
@@ -42,10 +38,8 @@ class RestaurantMenuRAGEngine:
             ids=sample_ids,
             metadatas=sample_metadata
         )
-        print(f"✅ Loaded {self.collection.count()} items into the vector store.")
 
     def query_menu_records(self, user_query: str, max_results: int = 3) -> str:
-        """Finds closest matching food items using vector similarity search."""
         try:
             results = self.collection.query(
                 query_texts=[user_query],
@@ -57,6 +51,5 @@ class RestaurantMenuRAGEngine:
             
             return "\n".join([f"- {doc}" for doc in results['documents'][0]])
             
-        except Exception as e:
-            print(f"❌ Error inside RAG querying pipeline: {e}")
+        except Exception:
             return "An error occurred while searching through our active menu archives."
