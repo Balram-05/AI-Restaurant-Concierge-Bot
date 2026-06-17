@@ -45,7 +45,6 @@ db = DatabaseManager()
 auth_manager = AuthPipeline()
 auth_manager.render_sidebar_auth()
 
-# --- SIDEBAR DATABASE CART SYNC ---
 if st.session_state.logged_in:
     st.sidebar.markdown("---")
     st.sidebar.subheader("🛒 Your Active Dining Cart")
@@ -53,7 +52,6 @@ if st.session_state.logged_in:
     try:
         conn = db._get_connection()
         cursor = conn.cursor()
-        # Fetch all open cart items directly from the database for this customer
         cursor.execute(
             "SELECT items FROM orders WHERE customer_id = %s AND status = 'Cart'",
             (st.session_state.customer_id,)
@@ -66,7 +64,6 @@ if st.session_state.logged_in:
             st.sidebar.info("Your cart is empty. Order via chatbot to populate items!")
         else:
             grand_total = 0
-            # Parse database item entries like '2x Veg Burger, 1x Coke' dynamically
             for row in rows:
                 items_str = row[0]
                 parts = [p.strip() for p in items_str.split(",")]
@@ -86,9 +83,7 @@ if st.session_state.logged_in:
                     item_total = price * qty
                     grand_total += item_total
                     
-                    col_item, col_qty = st.sidebar.columns([3, 1])
-                    col_item.write(f"🍽️ {item_name} (x{qty})")
-                    col_qty.write(f"₹{item_total}")
+                    st.sidebar.write(f"🍽️ {item_name} (x{qty}) — ₹{item_total}")
             
             st.sidebar.markdown(f"### **Total Bill: ₹{grand_total}**")
             
@@ -112,7 +107,6 @@ st.write("Interact with our multi-agent culinary platform seamlessly from the we
 col_chat, col_info = st.columns([2, 1])
 
 with col_chat:
-    st.sidebar.write("")
     st.subheader("💬 Chat with Concierge Core")
     
     if not st.session_state.logged_in:
@@ -140,8 +134,6 @@ with col_chat:
                         final_output = system.run_interaction(initial_state)
                         response_text = final_output["messages"][-1].content
                         st.markdown(f"**🤖 Assistant Response:**\n\n{response_text}")
-                        
-                        # Refresh the page automatically to update database cart items instantly
                         st.rerun()
                             
                     except Exception as e:

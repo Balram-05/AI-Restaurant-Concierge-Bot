@@ -87,12 +87,11 @@ class OrderAgent:
         if not customer_id:
             customer_id = self.db.get_or_create_customer(telegram_id=state["telegram_id"], phone_number=state.get("phone_number"))
 
-        # Checking if user explicitly asks for the bill or summary
+        # 1. Billing flow: User explicitly asks for bill/checkout
         if any(keyword in user_msg.lower() for keyword in ["bill", "total", "checkout", "amount"]):
             try:
                 conn = self.db._get_connection()
                 cursor = conn.cursor()
-                # Fetch all pending items added to the cart for this customer session
                 cursor.execute(
                     "SELECT items FROM orders WHERE customer_id = %s AND status = 'Cart' ORDER BY created_at ASC",
                     (customer_id,)
@@ -104,11 +103,10 @@ class OrderAgent:
                     conn.close()
                     return {"messages": [("assistant", "🛒 Your shopping cart is currently empty! Add items by asking me, like: 'Add 2 Veg Burgers to my cart'.")]}
                 
-                # Consolidate all cart entries together
                 all_items = ", ".join([row[0] for row in rows])
                 order_id = f"INV{uuid.uuid4().hex[:4].upper()}"
                 
-                # Update status to 'Completed' since the bill is explicitly generated
+                # Mark as Completed so they are checked out
                 cursor.execute(
                     "UPDATE orders SET status = 'Completed' WHERE customer_id = %s AND status = 'Cart'",
                     (customer_id,)
@@ -127,21 +125,20 @@ class OrderAgent:
             except Exception:
                 return {"messages": [("assistant", "Could not calculate your cart bill metrics at this moment.")]}
 
-        # Context Scenario: Parsing message to ADD items to Cart
+        # 2. Add to Cart flow
         system_prompt = (
             "You are a food order item extractor for a restaurant cart interface.\n"
             "Extract the list of food items and their respective quantities mentioned in the user message.\n"
-            "Respond ONLY with a clean summarized string of the items found (e.g., '2x Veg Burger, 1x Coke').\n"
+            "Respond ONLY with a clean summarized string of the items found exactly matching the items in the menu (e.g., '2x Veg Burger, 1x Coke / Coca Cola').\n"
             "If no clear menu items are being added to the cart, respond with 'EMPTY'."
         )
 
         extracted_items = self.llm.invoke([("system", system_prompt), ("user", user_msg)]).content.strip()
 
-        if "EMPTY" in extracted_items:
+        if "EMPTY" in extracted_items or not extracted_items:
             return {"messages": [("assistant", "Which dishes would you like to add to your cart? Please specify quantities and items from our active menu.")]}
 
         try:
-            # We save the row entry with status='Cart' instead of 'Received' to allow stacking multiple choices
             conn = self.db._get_connection()
             cursor = conn.cursor()
             cursor.execute(
@@ -152,14 +149,11 @@ class OrderAgent:
             cursor.close()
             conn.close()
 
-            # Conversational phrasing changed from "Order Placed" to "Added to Cart"
             confirmation = (
                 f"🛒 **Added to Cart successfully!**\n"
                 f"Items: `{extracted_items}`\n\n"
-                "You can continue adding more dishes, or simply type *'bill'* whenever you are ready to compute the final total invoice amount!"
+                "You can continue adding more dishes, or simply type *'bill'* whenever you are ready to check out!"
             )
-            return {
-                "messages": [("assistant", confirmation)]
-            }
+            return {"messages": [("assistant", confirmation)]}
         except Exception:
             return {"messages": [("assistant", "An error occurred while attempting to update your shopping cart entries.")]}
