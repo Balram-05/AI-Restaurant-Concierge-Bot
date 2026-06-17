@@ -87,63 +87,79 @@ class OrderAgent:
         if not customer_id:
             customer_id = self.db.get_or_create_customer(telegram_id=state["telegram_id"], phone_number=state.get("phone_number"))
 
+        # Checking if user explicitly asks for the bill or summary
         if any(keyword in user_msg.lower() for keyword in ["bill", "total", "checkout", "amount"]):
             try:
                 conn = self.db._get_connection()
                 cursor = conn.cursor()
+                # Fetch all pending items added to the cart for this customer session
                 cursor.execute(
-                    "SELECT items, order_id FROM orders WHERE customer_id = %s ORDER BY created_at DESC LIMIT 1",
+                    "SELECT items FROM orders WHERE customer_id = %s AND status = 'Cart' ORDER BY created_at ASC",
                     (customer_id,)
                 )
-                row = cursor.fetchone()
+                rows = cursor.fetchall()
+                
+                if not rows:
+                    cursor.close()
+                    conn.close()
+                    return {"messages": [("assistant", "🛒 Your shopping cart is currently empty! Add items by asking me, like: 'Add 2 Veg Burgers to my cart'.")]}
+                
+                # Consolidate all cart entries together
+                all_items = ", ".join([row[0] for row in rows])
+                order_id = f"INV{uuid.uuid4().hex[:4].upper()}"
+                
+                # Update status to 'Completed' since the bill is explicitly generated
+                cursor.execute(
+                    "UPDATE orders SET status = 'Completed' WHERE customer_id = %s AND status = 'Cart'",
+                    (customer_id,)
+                )
+                conn.commit()
                 cursor.close()
                 conn.close()
-
-                if not row:
-                    return {"messages": [("assistant", "Your active cart is currently empty! Order some dishes first.")]}
-                
-                items_summary = row[0]
-                order_id = row[1]
                 
                 calc_prompt = (
-                    f"You are the billing system calculator. Based on the items string: '{items_summary}' "
-                    f"and this absolute pricing sheet: {self.prices}, compile a beautiful itemized text bill response.\n"
-                    "Show items, quantities, matching individual costs, and sum up the exact Final Grand Total clearly."
+                    f"You are the dynamic billing system calculator. Consolidate this aggregated list of items: '{all_items}'.\n"
+                    f"Using this explicit price dictionary matrix: {self.prices}, create a clean, elegant itemized receipt.\n"
+                    "List each item, its quantity, matched individual cost, subtotal, and summarize the Final Grand Total at the bottom clearly."
                 )
                 bill_invoice = self.llm.invoke([("system", calc_prompt)]).content
-                return {"messages": [("assistant", f"📄 **Order Invoice - ID: {order_id}**\n\n{bill_invoice}")]}
+                return {"messages": [("assistant", f"📄 **Gourmet Invoice Summary - {order_id}**\n\n{bill_invoice}")]}
             except Exception:
-                return {"messages": [("assistant", "Could not calculate your bill details at this moment.")]}
+                return {"messages": [("assistant", "Could not calculate your cart bill metrics at this moment.")]}
 
+        # Context Scenario: Parsing message to ADD items to Cart
         system_prompt = (
-            "You are a food order processing assistant.\n"
-            "Extract the list of items and quantities from the user message.\n"
+            "You are a food order item extractor for a restaurant cart interface.\n"
+            "Extract the list of food items and their respective quantities mentioned in the user message.\n"
             "Respond ONLY with a clean summarized string of the items found (e.g., '2x Veg Burger, 1x Coke').\n"
-            "If no clear items are being added, respond with 'EMPTY'."
+            "If no clear menu items are being added to the cart, respond with 'EMPTY'."
         )
 
         extracted_items = self.llm.invoke([("system", system_prompt), ("user", user_msg)]).content.strip()
 
         if "EMPTY" in extracted_items:
-            return {"messages": [("assistant", "What items would you like to add to your cart? Please specify quantities.")]}
+            return {"messages": [("assistant", "Which dishes would you like to add to your cart? Please specify quantities and items from our active menu.")]}
 
         try:
-            order_id = f"ORD{uuid.uuid4().hex[:4].upper()}"
-
+            # We save the row entry with status='Cart' instead of 'Received' to allow stacking multiple choices
             conn = self.db._get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO orders (order_id, customer_id, items, status) VALUES (%s, %s, %s, 'Received')",
-                (order_id, customer_id, extracted_items)
+                "INSERT INTO orders (order_id, customer_id, items, status) VALUES (%s, %s, %s, 'Cart')",
+                (f"CRT{uuid.uuid4().hex[:4].upper()}", customer_id, extracted_items)
             )
             conn.commit()
             cursor.close()
             conn.close()
 
-            confirmation = f"🛒 Added to Cart! Order ID: {order_id}.\nItems: {extracted_items}.\n\nType *'bill'* whenever you are ready to check out the complete total amount!"
+            # Conversational phrasing changed from "Order Placed" to "Added to Cart"
+            confirmation = (
+                f"🛒 **Added to Cart successfully!**\n"
+                f"Items: `{extracted_items}`\n\n"
+                "You can continue adding more dishes, or simply type *'bill'* whenever you are ready to compute the final total invoice amount!"
+            )
             return {
-                "current_order_id": order_id,
                 "messages": [("assistant", confirmation)]
             }
         except Exception:
-            return {"messages": [("assistant", "An error occurred while building your order cart.")]}
+            return {"messages": [("assistant", "An error occurred while attempting to update your shopping cart entries.")]}
