@@ -71,6 +71,14 @@ class OrderAgent:
             model_name=os.getenv("GROQ_MODEL_NAME", "llama-3.3-70b-versatile"),
             temperature=0.0
         )
+        self.prices = {
+            "Paneer Pizza": 299,
+            "Veg Burger": 120,
+            "Cheese French Fries": 150,
+            "Margherita Pizza": 249,
+            "Coke / Coca Cola": 40,
+            "Paneer Burger": 160
+        }
 
     def execute(self, state: AgentState) -> dict:
         user_msg = state["messages"][-1].content
@@ -78,6 +86,34 @@ class OrderAgent:
 
         if not customer_id:
             customer_id = self.db.get_or_create_customer(telegram_id=state["telegram_id"], phone_number=state.get("phone_number"))
+
+        if any(keyword in user_msg.lower() for keyword in ["bill", "total", "checkout", "amount"]):
+            try:
+                conn = self.db._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT items, order_id FROM orders WHERE customer_id = %s ORDER BY created_at DESC LIMIT 1",
+                    (customer_id,)
+                )
+                row = cursor.fetchone()
+                cursor.close()
+                conn.close()
+
+                if not row:
+                    return {"messages": [("assistant", "Your active cart is currently empty! Order some dishes first.")]}
+                
+                items_summary = row[0]
+                order_id = row[1]
+                
+                calc_prompt = (
+                    f"You are the billing system calculator. Based on the items string: '{items_summary}' "
+                    f"and this absolute pricing sheet: {self.prices}, compile a beautiful itemized text bill response.\n"
+                    "Show items, quantities, matching individual costs, and sum up the exact Final Grand Total clearly."
+                )
+                bill_invoice = self.llm.invoke([("system", calc_prompt)]).content
+                return {"messages": [("assistant", f"📄 **Order Invoice - ID: {order_id}**\n\n{bill_invoice}")]}
+            except Exception:
+                return {"messages": [("assistant", "Could not calculate your bill details at this moment.")]}
 
         system_prompt = (
             "You are a food order processing assistant.\n"
@@ -104,7 +140,7 @@ class OrderAgent:
             cursor.close()
             conn.close()
 
-            confirmation = f"Order created successfully! Order ID: {order_id}. Items: {extracted_items}. Status: Received."
+            confirmation = f"🛒 Added to Cart! Order ID: {order_id}.\nItems: {extracted_items}.\n\nType *'bill'* whenever you are ready to check out the complete total amount!"
             return {
                 "current_order_id": order_id,
                 "messages": [("assistant", confirmation)]
