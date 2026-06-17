@@ -150,9 +150,13 @@ with col_chat:
                 st.session_state.chat_history.append(("user", user_input))
                 
                 with st.spinner("Communicating with Multi-Agent Cluster..."):
+                    t_id_raw = st.session_state.get("user_telegram_id", "web_portal_fallback")
+                    if t_id_raw is None:
+                        t_id_raw = "web_portal_fallback"
+
                     payload = {
-                        "telegram_id": str(st.session_state.user_telegram_id),
-                        "message_text": user_input,
+                        "telegram_id": str(t_id_raw).strip(),
+                        "message_text": str(user_input),
                         "phone_number": st.session_state.get("phone_number", None)
                     }
                     
