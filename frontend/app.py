@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from frontend.auth_pipeline import AuthPipeline
 from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.components.rag_engine import RestaurantMenuRAGEngine
+from src.components.database import DatabaseManager
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
@@ -25,17 +26,12 @@ st.markdown("""
     }
     div.stButton > button:first-child:hover { background-color: #E6C655 !important; }
     section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2D2D2D; }
-    .cart-box { background-color: #222222; padding: 15px; border-radius: 8px; border: 1px solid #333333; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-if "cart" not in st.session_state:
-    st.session_state.cart = {}
-
-# Menu Price Matrix matching RAG Engine Seeding exactly
 MENU_PRICES = {
     "Paneer Pizza": 299,
     "Veg Burger": 120,
@@ -45,32 +41,70 @@ MENU_PRICES = {
     "Paneer Burger": 160
 }
 
+db = DatabaseManager()
 auth_manager = AuthPipeline()
 auth_manager.render_sidebar_auth()
 
-# --- SIDEBAR LIVE PERSISTENT SHOPPING CART ENGINE ---
+# --- SIDEBAR DATABASE CART SYNC ---
 if st.session_state.logged_in:
     st.sidebar.markdown("---")
     st.sidebar.subheader("🛒 Your Active Dining Cart")
     
-    if not st.session_state.cart:
-        st.sidebar.info("Your cart is empty. Order via chatbot to populate items!")
-    else:
-        grand_total = 0
-        for item, qty in list(st.session_state.cart.items()):
-            price = MENU_PRICES.get(item, 100) # Fallback baseline default price
-            item_total = price * qty
-            grand_total += item_total
-            
-            col_item, col_qty = st.sidebar.columns([3, 1])
-            col_item.write(f"🍽️ {item} (x{qty})")
-            col_qty.write(f"₹{item_total}")
-            
-        st.sidebar.markdown(f"### **Total Bill: ₹{grand_total}**")
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        # Fetch all open cart items directly from the database for this customer
+        cursor.execute(
+            "SELECT items FROM orders WHERE customer_id = %s AND status = 'Cart'",
+            (st.session_state.customer_id,)
+        )
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
         
-        if st.sidebar.button("Clear Shopping Cart"):
-            st.session_state.cart = {}
-            st.rerun()
+        if not rows:
+            st.sidebar.info("Your cart is empty. Order via chatbot to populate items!")
+        else:
+            grand_total = 0
+            # Parse database item entries like '2x Veg Burger, 1x Coke' dynamically
+            for row in rows:
+                items_str = row[0]
+                parts = [p.strip() for p in items_str.split(",")]
+                for part in parts:
+                    if "x" in part:
+                        qty_part, name_part = part.split("x", 1)
+                        try:
+                            qty = int(qty_part.strip())
+                        except ValueError:
+                            qty = 1
+                        item_name = name_part.strip()
+                    else:
+                        qty = 1
+                        item_name = part.strip()
+                        
+                    price = MENU_PRICES.get(item_name, 120)
+                    item_total = price * qty
+                    grand_total += item_total
+                    
+                    col_item, col_qty = st.sidebar.columns([3, 1])
+                    col_item.write(f"🍽️ {item_name} (x{qty})")
+                    col_qty.write(f"₹{item_total}")
+            
+            st.sidebar.markdown(f"### **Total Bill: ₹{grand_total}**")
+            
+            if st.sidebar.button("Clear Shopping Cart"):
+                conn = db._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM orders WHERE customer_id = %s AND status = 'Cart'",
+                    (st.session_state.customer_id,)
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+                st.rerun()
+    except Exception:
+        st.sidebar.error("Error linking with database cart.")
 
 st.title("🍽️ Gourmet Concierge AI Hub")
 st.write("Interact with our multi-agent culinary platform seamlessly from the web or your chat app.")
@@ -78,6 +112,7 @@ st.write("Interact with our multi-agent culinary platform seamlessly from the we
 col_chat, col_info = st.columns([2, 1])
 
 with col_chat:
+    st.sidebar.write("")
     st.subheader("💬 Chat with Concierge Core")
     
     if not st.session_state.logged_in:
@@ -106,23 +141,8 @@ with col_chat:
                         response_text = final_output["messages"][-1].content
                         st.markdown(f"**🤖 Assistant Response:**\n\n{response_text}")
                         
-                        # Dynamic Cart Sync intercept wrapper logic
-                        # Intercept structural extraction keywords inside final output state history
-                        lower_text = user_input.lower()
-                        for dish in MENU_PRICES.keys():
-                            if dish.lower() in lower_text:
-                                # Determine quantity implicitly or default safely to 1
-                                qty = 1
-                                words = lower_text.split()
-                                for idx, word in enumerate(words):
-                                    if word.isdigit() and idx < len(words) - 1 and words[idx+1] in dish.lower():
-                                        qty = int(word)
-                                        break
-                                st.session_state.cart[dish] = st.session_state.cart.get(dish, 0) + qty
-                        
-                        # Force real-time view updates if bill context is requested conversational loop
-                        if "bill" in lower_text or "total" in lower_text or "checkout" in lower_text:
-                            st.rerun()
+                        # Refresh the page automatically to update database cart items instantly
+                        st.rerun()
                             
                     except Exception as e:
                         st.error(f"Workflow execution failure: {e}")
