@@ -1,5 +1,6 @@
 import os
 import sys
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -8,7 +9,6 @@ load_dotenv(override=False)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from frontend.auth_pipeline import AuthPipeline
-from src.components.graph_bot import RestaurantMultiAgentSystem
 from src.components.rag_engine import RestaurantMenuRAGEngine
 from src.components.database import DatabaseManager
 
@@ -32,6 +32,10 @@ st.markdown("""
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Exact Menu Price Tracking Sheets
 MENU_PRICES = {
     "Paneer Pizza": 299,
     "Veg Burger": 120,
@@ -45,6 +49,7 @@ db = DatabaseManager()
 auth_manager = AuthPipeline()
 auth_manager.render_sidebar_auth()
 
+# --- SIDEBAR DATABASE CART SYNC (BULLETPROOF PARSING) ---
 if st.session_state.logged_in:
     st.sidebar.markdown("---")
     st.sidebar.subheader("🛒 Your Active Dining Cart")
@@ -64,27 +69,47 @@ if st.session_state.logged_in:
             st.sidebar.info("Your cart is empty. Order via chatbot to populate items!")
         else:
             grand_total = 0
+            
+            # Read every open cart entry from database records
             for row in rows:
                 items_str = row[0]
+                # Split entries if multiple items are stored in one row (e.g. "2x Veg Burger, 1x Coke")
                 parts = [p.strip() for p in items_str.split(",")]
+                
                 for part in parts:
-                    if "x" in part:
-                        qty_part, name_part = part.split("x", 1)
+                    if not part:
+                        continue
+                        
+                    qty = 1
+                    item_name_extracted = part
+                    
+                    # Safely handle '2x Item' or '2 x Item' prefixes
+                    if "x" in part.lower():
+                        qty_part, name_part = part.lower().split("x", 1)
                         try:
                             qty = int(qty_part.strip())
+                            item_name_extracted = name_part.strip()
                         except ValueError:
                             qty = 1
-                        item_name = name_part.strip()
-                    else:
-                        qty = 1
-                        item_name = part.strip()
-                        
-                    price = MENU_PRICES.get(item_name, 120)
-                    item_total = price * qty
-                    grand_total += item_total
+
+                    # Bulletproof Search: Fuzzy find the closest match inside our actual pricing menu dictionary keys
+                    matched_key = None
+                    for actual_menu_item in MENU_PRICES.keys():
+                        if actual_menu_item.lower() in item_name_extracted or item_name_extracted in actual_menu_item.lower():
+                            matched_key = actual_menu_item
+                            break
                     
-                    st.sidebar.write(f"🍽️ {item_name} (x{qty}) — ₹{item_total}")
+                    # If matched successfully, compute pricing metrics
+                    if matched_key:
+                        price = MENU_PRICES[matched_key]
+                        item_total = price * qty
+                        grand_total += item_total
+                        st.sidebar.write(f"🍽️ **{matched_key}** (x{qty}) — ₹{item_total}")
+                    else:
+                        # Fallback for unrecognized text additions
+                        st.sidebar.write(f"❓ *{part}* (Quantity Untracked)")
             
+            st.sidebar.markdown("---")
             st.sidebar.markdown(f"### **Total Bill: ₹{grand_total}**")
             
             if st.sidebar.button("Clear Shopping Cart"):
@@ -112,32 +137,37 @@ with col_chat:
     if not st.session_state.logged_in:
         st.info("💡 Please complete registration or sign in on the left Guest Portal sidebar to begin.")
     else:
-        user_input = st.text_input("Ask about menus, reserve tables, or place orders:", placeholder="Type a message...")
+        for role, text in st.session_state.chat_history:
+            if role == "user":
+                st.markdown(f"**🧑 You:** {text}")
+            else:
+                st.markdown(f"{text}")
+        
+        user_input = st.text_input("Ask about menus, reserve tables, or place orders:", placeholder="Type a message...", key="user_msg_input")
         
         if st.button("Send to Agent System"):
             if user_input:
-                with st.spinner("Orchestrating agents..."):
-                    initial_state = {
-                        "messages": [("user", user_input)],
-                        "telegram_id": st.session_state.user_telegram_id,
-                        "customer_id": st.session_state.customer_id,
-                        "phone_number": st.session_state.get("phone_number", ""),
-                        "current_intent": None,
-                        "next_agent": None,
-                        "current_order_id": None,
-                        "current_reservation_id": None,
-                        "metadata": {}
+                st.session_state.chat_history.append(("user", user_input))
+                
+                with st.spinner("Communicating with Multi-Agent Cluster..."):
+                    payload = {
+                        "telegram_id": str(st.session_state.user_telegram_id),
+                        "message_text": user_input,
+                        "phone_number": st.session_state.get("phone_number", None)
                     }
                     
                     try:
-                        system = RestaurantMultiAgentSystem()
-                        final_output = system.run_interaction(initial_state)
-                        response_text = final_output["messages"][-1].content
-                        st.markdown(f"**🤖 Assistant Response:**\n\n{response_text}")
-                        st.rerun()
-                            
+                        response = requests.post(f"{BACKEND_URL}/webhook/chat_portal", json=payload, timeout=15)
+                        if response.status_code == 200:
+                            reply_data = response.json()
+                            assistant_response = reply_data.get("response", "Message logged successfully.")
+                            st.session_state.chat_history.append(("assistant", f"**🤖 Bot:** {assistant_response}"))
+                        else:
+                            st.session_state.chat_history.append(("assistant", "⚠️ Error communicating with backend API node."))
                     except Exception as e:
-                        st.error(f"Workflow execution failure: {e}")
+                        st.session_state.chat_history.append(("assistant", f"⚠️ Network timeout connecting to backend logic: {e}"))
+                
+                st.rerun()
 
 with col_info:
     st.subheader("📊 Active Live Menu Quick-View")
